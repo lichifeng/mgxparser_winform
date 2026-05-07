@@ -54,6 +54,7 @@
     <Reference Include="System.Xml" />
     <Reference Include="MgxNative">
       <HintPath>MgxNative.dll</HintPath>
+      <Private>False</Private>
     </Reference>
   </ItemGroup>
   <ItemGroup>
@@ -93,9 +94,6 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="MAINICON.ico" />
-    <Content Include="MgxNative.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
     <EmbeddedResource Include="MgxNative.dll" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

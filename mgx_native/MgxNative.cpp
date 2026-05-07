@@ -2,10 +2,11 @@
 #include <string.h>
 
 /* C API from mgx.lib (Rust static library) */
+/* lang: NULL or "" → Chinese, "en" → English */
 extern "C" {
-    char* mgx_parse_file(const char* path);
+    char* mgx_parse_file(const char* path, const char* lang);
     void  mgx_free_string(char* ptr);
-    char* mgx_parse_bytes(const unsigned char* data, size_t len, const char* filename);
+    char* mgx_parse_bytes(const unsigned char* data, size_t len, const char* filename, const char* lang);
 }
 
 using namespace System;
@@ -20,7 +21,7 @@ String^ MgxNative::Parser::ParseFile(String^ path)
     Marshal::Copy(pathBytes, 0, nativePath, pathBytes->Length);
     Marshal::WriteByte(nativePath, pathBytes->Length, 0);
 
-    char* result = mgx_parse_file(static_cast<const char*>(nativePath.ToPointer()));
+    char* result = mgx_parse_file(static_cast<const char*>(nativePath.ToPointer()), NULL);
 
     Marshal::FreeHGlobal(nativePath);
 
@@ -50,7 +51,7 @@ String^ MgxNative::Parser::ParseBytes(array<unsigned char>^ data, String^ filena
     Marshal::WriteByte(nativeName, nameBytes->Length, 0);
 
     char* result = mgx_parse_bytes(nativeData, data->Length,
-        static_cast<const char*>(nativeName.ToPointer()));
+        static_cast<const char*>(nativeName.ToPointer()), NULL);
 
     Marshal::FreeHGlobal(nativeName);
 
