@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -17,6 +18,8 @@ namespace mgxparser
         private int _sortColumn;
         private bool _sortAscending = true;
         private CancellationTokenSource _cts;
+        private string _currentGuid;
+        private FileInfo _currentSearchedFile;
         private static readonly string LastFolderFile = Path.Combine(
             Path.GetTempPath(), "mgxparser_lastfolder.txt");
 
@@ -183,6 +186,11 @@ namespace mgxparser
             {
                 var info = await Task.Run(() => MgxParser.ParseGameInfo(filePath));
 
+                _currentGuid = info.guid;
+                _currentSearchedFile = new FileInfo(filePath);
+                lnkSearch.Visible = true;
+                ResetSearchLink();
+
                 var matchup = info.matchup;
                 var durStr = FormatDuration(info.duration);
                 if (matchup != null && matchup.Count == 2)
@@ -223,6 +231,9 @@ namespace mgxparser
             catch (Exception ex)
             {
                 lblMatchup.Text = "对阵: 解析失败";
+                _currentGuid = null;
+                _currentSearchedFile = null;
+                ResetSearchLink();
                 MessageBox.Show($"解析录像文件失败: {ex.Message}", "错误",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
@@ -232,6 +243,9 @@ namespace mgxparser
         {
             lblMatchup.Text = "对阵: -";
             lvPlayers.Items.Clear();
+            _currentGuid = null;
+            _currentSearchedFile = null;
+            lnkSearch.Visible = false;
         }
 
         private void btnDelete_Click(object sender, EventArgs e)
@@ -380,10 +394,7 @@ namespace mgxparser
                     }
                     catch
                     {
-                        // Response is not valid JSON — treat raw text as error
-#if DEBUG
-                        WriteUploadDebugLog(fi.Name, responseBody, null);
-#endif
+                        WriteLog("error", $"{fi.Name}: 响应非 JSON", responseBody);
                         return false;
                     }
 
@@ -391,9 +402,7 @@ namespace mgxparser
                         return true;
 
                     var errMsg = dict != null && dict.ContainsKey("error") ? dict["error"].ToString() : responseBody;
-#if DEBUG
-                    WriteUploadDebugLog(fi.Name, responseBody, errMsg);
-#endif
+                    WriteLog("upload", $"{fi.Name}: {errMsg}", responseBody);
                     return false;
                 }
             }
@@ -403,31 +412,145 @@ namespace mgxparser
             }
             catch (Exception ex)
             {
-#if DEBUG
-                WriteUploadDebugLog(fi.Name, responseBody, ex.ToString());
-#endif
+                WriteLog("error", $"{fi.Name}: 异常: {ex.Message}", ex.ToString());
                 return false;
             }
         }
 
-#if DEBUG
-        private static void WriteUploadDebugLog(string fileName, string responseBody, string errorInfo)
+        private static readonly string LogDir = AppDomain.CurrentDomain.BaseDirectory;
+
+        private static void WriteLog(string type, string message, string detail = null)
         {
+#if !DEBUG
+            if (type != "error" && string.IsNullOrEmpty(detail))
+                return;
+#endif
             try
             {
-                var logPath = Path.Combine(Environment.CurrentDirectory, "upload_debug.log");
+                var logPath = Path.Combine(LogDir, "mgxparser.log");
                 using (var w = File.AppendText(logPath))
                 {
-                    w.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] 文件: {fileName}");
-                    w.WriteLine($"错误: {errorInfo}");
-                    if (responseBody != null)
-                        w.WriteLine($"响应: {responseBody}");
+                    w.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [{type}] {message}");
+                    if (detail != null)
+                        w.WriteLine(detail);
                     w.WriteLine(new string('-', 60));
                 }
             }
             catch { }
         }
-#endif
+
+        private void ResetSearchLink()
+        {
+            lnkSearch.Text = "查询上传记录";
+            lnkSearch.Tag = null;
+            lnkSearch.LinkVisited = false;
+        }
+
+        private async void lnkSearch_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            var tag = lnkSearch.Tag as string;
+
+            if (tag == "upload")
+            {
+                if (_currentSearchedFile != null)
+                {
+                    SetStatus($"正在上传: {_currentSearchedFile.Name}", 0);
+                    var ok = await UploadFileAsync(_currentSearchedFile);
+                    if (ok == true)
+                    {
+                        SetStatus($"\"{_currentSearchedFile.Name}\" 上传成功，正在查询...");
+                        // Fall through to re-query
+                    }
+                    else
+                    {
+                        SetStatus($"\"{_currentSearchedFile.Name}\" 上传失败");
+                        return;
+                    }
+                }
+                return;
+            }
+
+            if (tag != null && tag.StartsWith("http"))
+            {
+                System.Diagnostics.Process.Start(tag);
+                return;
+            }
+
+            // Default: search
+            if (string.IsNullOrEmpty(_currentGuid))
+            {
+                lnkSearch.Text = "没有 GUID";
+                SetStatus("没有可查询的 GUID");
+                return;
+            }
+
+            lnkSearch.Enabled = false;
+            lnkSearch.Text = "查询中...";
+            SetStatus("正在查询上传记录...", 50);
+
+            try
+            {
+                var payload = $"{{\"size\":8,\"query\":{{\"term\":{{\"guid\":\"{_currentGuid}\"}}}},\"sort\":[{{\"duration\":\"desc\"}}]}}";
+                WriteLog("search", $"发送查询: {_currentGuid}");
+
+                var json = await Task.Run(() =>
+                {
+                    using (var client = new WebClient())
+                    {
+                        var authBytes = System.Text.Encoding.ASCII.GetBytes("aocrec:aocrec");
+                        client.Headers[HttpRequestHeader.Authorization] = "Basic " + Convert.ToBase64String(authBytes);
+                        client.Headers[HttpRequestHeader.ContentType] = "application/json";
+                        var bytes = client.UploadData(
+                            "https://es1.aocrec.com/mgxhub1/_search",
+                            System.Text.Encoding.UTF8.GetBytes(payload));
+                        return System.Text.Encoding.UTF8.GetString(bytes);
+                    }
+                });
+
+                WriteLog("search", "查询响应", json?.Substring(0, Math.Min(json.Length, 500)));
+
+                var serializer = new System.Web.Script.Serialization.JavaScriptSerializer();
+                var result = serializer.Deserialize<Dictionary<string, object>>(json);
+
+                bool found = false;
+
+                if (result != null && result.ContainsKey("hits"))
+                {
+                    var hits = result["hits"] as Dictionary<string, object>;
+                    if (hits != null && hits.ContainsKey("hits"))
+                    {
+                        var documents = hits["hits"] as System.Collections.ArrayList;
+                        if (documents != null && documents.Count > 0)
+                            found = true;
+                    }
+                }
+
+                if (found)
+                {
+                    var detailUrl = $"https://aocrec.com/#{_currentGuid}";
+                    lnkSearch.Text = "查看详情";
+                    lnkSearch.Tag = detailUrl;
+                    SetStatus($"录像已在服务器上找到");
+                }
+                else
+                {
+                    lnkSearch.Text = "上传录像";
+                    lnkSearch.Tag = "upload";
+                    SetStatus("录像未找到，可点击上传");
+                }
+            }
+            catch (Exception ex)
+            {
+                WriteLog("error", "查询异常", ex.ToString());
+                lnkSearch.Text = "查询失败";
+                lnkSearch.Tag = null;
+                SetStatus($"查询失败: {ex.Message}");
+            }
+            finally
+            {
+                lnkSearch.Enabled = true;
+            }
+        }
 
         private void lvFiles_KeyDown(object sender, KeyEventArgs e)
         {

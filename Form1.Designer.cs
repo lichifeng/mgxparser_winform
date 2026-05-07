@@ -19,6 +19,7 @@ namespace mgxparser
             this.tblLayout = new System.Windows.Forms.TableLayoutPanel();
             this.gbInfo = new System.Windows.Forms.GroupBox();
             this.lblMatchup = new System.Windows.Forms.Label();
+            this.lnkSearch = new System.Windows.Forms.LinkLabel();
             this.lvPlayers = new System.Windows.Forms.ListView();
             this.colPlayerName = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.colCiv = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
@@ -67,6 +68,7 @@ namespace mgxparser
             // gbInfo
             // 
             this.gbInfo.Controls.Add(this.lblMatchup);
+            this.gbInfo.Controls.Add(this.lnkSearch);
             this.gbInfo.Controls.Add(this.lvPlayers);
             this.gbInfo.Controls.Add(this.chkConfirmDelete);
             this.gbInfo.Controls.Add(this.btnUploadAll);
@@ -88,6 +90,24 @@ namespace mgxparser
             this.lblMatchup.Size = new System.Drawing.Size(59, 22);
             this.lblMatchup.TabIndex = 0;
             this.lblMatchup.Text = "对阵: -";
+            // 
+            // lnkSearch
+            // 
+            this.lnkSearch.ActiveLinkColor = System.Drawing.Color.DodgerBlue;
+            this.lnkSearch.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.lnkSearch.AutoSize = true;
+            this.lnkSearch.Font = new System.Drawing.Font("Microsoft YaHei UI", 10F);
+            this.lnkSearch.LinkBehavior = System.Windows.Forms.LinkBehavior.HoverUnderline;
+            this.lnkSearch.LinkColor = System.Drawing.Color.DodgerBlue;
+            this.lnkSearch.Location = new System.Drawing.Point(437, 24);
+            this.lnkSearch.Name = "lnkSearch";
+            this.lnkSearch.Size = new System.Drawing.Size(107, 20);
+            this.lnkSearch.TabIndex = 5;
+            this.lnkSearch.TabStop = true;
+            this.lnkSearch.Text = "查询档案库记录";
+            this.lnkSearch.Visible = false;
+            this.lnkSearch.VisitedLinkColor = System.Drawing.Color.DodgerBlue;
+            this.lnkSearch.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.lnkSearch_LinkClicked);
             // 
             // lvPlayers
             // 
@@ -330,6 +350,7 @@ namespace mgxparser
         private System.Windows.Forms.ColumnHeader colResign;
         private System.Windows.Forms.Button btnDelete;
         private System.Windows.Forms.Button btnUploadAll;
+        private System.Windows.Forms.LinkLabel lnkSearch;
         private System.Windows.Forms.CheckBox chkConfirmDelete;
         private System.Windows.Forms.GroupBox gbFiles;
         private System.Windows.Forms.Button btnSelectFolder;
