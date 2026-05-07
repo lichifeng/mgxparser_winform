@@ -327,7 +327,7 @@ namespace mgxparser
             this.MinimumSize = new System.Drawing.Size(720, 460);
             this.Name = "Form1";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
-            this.Text = "帝国时代录像管理器";
+            this.Text = "帝国时代录像管理器 | aocrec.com";
             this.tblLayout.ResumeLayout(false);
             this.gbInfo.ResumeLayout(false);
             this.gbInfo.PerformLayout();

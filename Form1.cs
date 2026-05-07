@@ -441,7 +441,7 @@ namespace mgxparser
 
         private void ResetSearchLink()
         {
-            lnkSearch.Text = "查询上传记录";
+            lnkSearch.Text = "上传到档案库";
             lnkSearch.Tag = null;
             lnkSearch.LinkVisited = false;
         }
@@ -450,33 +450,13 @@ namespace mgxparser
         {
             var tag = lnkSearch.Tag as string;
 
-            if (tag == "upload")
-            {
-                if (_currentSearchedFile != null)
-                {
-                    SetStatus($"正在上传: {_currentSearchedFile.Name}", 0);
-                    var ok = await UploadFileAsync(_currentSearchedFile);
-                    if (ok == true)
-                    {
-                        SetStatus($"\"{_currentSearchedFile.Name}\" 上传成功，正在查询...");
-                        // Fall through to re-query
-                    }
-                    else
-                    {
-                        SetStatus($"\"{_currentSearchedFile.Name}\" 上传失败");
-                        return;
-                    }
-                }
-                return;
-            }
-
             if (tag != null && tag.StartsWith("http"))
             {
                 System.Diagnostics.Process.Start(tag);
                 return;
             }
 
-            // Default: search
+            // Search
             if (string.IsNullOrEmpty(_currentGuid))
             {
                 lnkSearch.Text = "没有 GUID";
@@ -486,7 +466,7 @@ namespace mgxparser
 
             lnkSearch.Enabled = false;
             lnkSearch.Text = "查询中...";
-            SetStatus("正在查询上传记录...", 50);
+            SetStatus("正在查询档案库...", 50);
 
             try
             {
@@ -530,13 +510,35 @@ namespace mgxparser
                     var detailUrl = $"https://aocrec.com/#{_currentGuid}";
                     lnkSearch.Text = "查看详情";
                     lnkSearch.Tag = detailUrl;
-                    SetStatus($"录像已在服务器上找到");
+                    SetStatus($"录像已被帝国时代档案库收录");
                 }
                 else
                 {
-                    lnkSearch.Text = "上传录像";
-                    lnkSearch.Tag = "upload";
-                    SetStatus("录像未找到，可点击上传");
+                    // Auto-upload when not found, no second click needed
+                    lnkSearch.Text = "正在上传...";
+                    SetStatus($"正在上传: {_currentSearchedFile?.Name ?? "未知"}", 0);
+
+                    if (_currentSearchedFile != null)
+                    {
+                        var ok = await UploadFileAsync(_currentSearchedFile);
+                        if (ok == true)
+                        {
+                            lnkSearch.Text = "查询档案库";
+                            lnkSearch.Tag = null;
+                            SetStatus($"\"{_currentSearchedFile.Name}\" 上传成功");
+                        }
+                        else
+                        {
+                            lnkSearch.Text = "上传到档案库";
+                            lnkSearch.Tag = null;
+                            SetStatus($"\"{_currentSearchedFile.Name}\" 上传失败");
+                        }
+                    }
+                    else
+                    {
+                        lnkSearch.Text = "上传到档案库";
+                        lnkSearch.Tag = null;
+                    }
                 }
             }
             catch (Exception ex)
