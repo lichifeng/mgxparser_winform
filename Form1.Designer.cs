@@ -26,6 +26,7 @@ namespace mgxparser
             this.colWinner = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.colResign = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.chkConfirmDelete = new System.Windows.Forms.CheckBox();
+            this.btnUploadAll = new System.Windows.Forms.Button();
             this.btnDelete = new System.Windows.Forms.Button();
             this.gbFiles = new System.Windows.Forms.GroupBox();
             this.btnSelectFolder = new System.Windows.Forms.Button();
@@ -36,11 +37,16 @@ namespace mgxparser
             this.colFileDate = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.ctxMenu = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.tsmiCopyPath = new System.Windows.Forms.ToolStripMenuItem();
+            this.tsmiUpload = new System.Windows.Forms.ToolStripMenuItem();
             this.tsmiDelete = new System.Windows.Forms.ToolStripMenuItem();
+            this.statusStrip = new System.Windows.Forms.StatusStrip();
+            this.statusLabel = new System.Windows.Forms.ToolStripStatusLabel();
+            this.statusProgress = new System.Windows.Forms.ToolStripProgressBar();
             this.tblLayout.SuspendLayout();
             this.gbInfo.SuspendLayout();
             this.gbFiles.SuspendLayout();
             this.ctxMenu.SuspendLayout();
+            this.statusStrip.SuspendLayout();
             this.SuspendLayout();
             // 
             // tblLayout
@@ -54,8 +60,8 @@ namespace mgxparser
             this.tblLayout.Location = new System.Drawing.Point(0, 0);
             this.tblLayout.Name = "tblLayout";
             this.tblLayout.Padding = new System.Windows.Forms.Padding(6);
-            this.tblLayout.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 20F));
-            this.tblLayout.Size = new System.Drawing.Size(1156, 520);
+            this.tblLayout.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 547F));
+            this.tblLayout.Size = new System.Drawing.Size(1156, 541);
             this.tblLayout.TabIndex = 0;
             // 
             // gbInfo
@@ -63,11 +69,12 @@ namespace mgxparser
             this.gbInfo.Controls.Add(this.lblMatchup);
             this.gbInfo.Controls.Add(this.lvPlayers);
             this.gbInfo.Controls.Add(this.chkConfirmDelete);
+            this.gbInfo.Controls.Add(this.btnUploadAll);
             this.gbInfo.Controls.Add(this.btnDelete);
             this.gbInfo.Dock = System.Windows.Forms.DockStyle.Fill;
             this.gbInfo.Location = new System.Drawing.Point(9, 9);
             this.gbInfo.Name = "gbInfo";
-            this.gbInfo.Size = new System.Drawing.Size(566, 502);
+            this.gbInfo.Size = new System.Drawing.Size(566, 541);
             this.gbInfo.TabIndex = 0;
             this.gbInfo.TabStop = false;
             this.gbInfo.Text = "录像信息";
@@ -99,7 +106,7 @@ namespace mgxparser
             this.lvPlayers.HideSelection = false;
             this.lvPlayers.Location = new System.Drawing.Point(12, 56);
             this.lvPlayers.Name = "lvPlayers";
-            this.lvPlayers.Size = new System.Drawing.Size(542, 407);
+            this.lvPlayers.Size = new System.Drawing.Size(542, 429);
             this.lvPlayers.TabIndex = 1;
             this.lvPlayers.UseCompatibleStateImageBehavior = false;
             this.lvPlayers.View = System.Windows.Forms.View.Details;
@@ -135,18 +142,29 @@ namespace mgxparser
             this.chkConfirmDelete.AutoSize = true;
             this.chkConfirmDelete.Checked = true;
             this.chkConfirmDelete.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.chkConfirmDelete.Location = new System.Drawing.Point(12, 468);
+            this.chkConfirmDelete.Location = new System.Drawing.Point(12, 490);
             this.chkConfirmDelete.Name = "chkConfirmDelete";
             this.chkConfirmDelete.Size = new System.Drawing.Size(103, 24);
             this.chkConfirmDelete.TabIndex = 3;
             this.chkConfirmDelete.Text = "删除前确认";
             this.chkConfirmDelete.UseVisualStyleBackColor = true;
             // 
+            // btnUploadAll
+            // 
+            this.btnUploadAll.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+            this.btnUploadAll.Location = new System.Drawing.Point(340, 491);
+            this.btnUploadAll.Name = "btnUploadAll";
+            this.btnUploadAll.Size = new System.Drawing.Size(108, 27);
+            this.btnUploadAll.TabIndex = 4;
+            this.btnUploadAll.Text = "全部上传";
+            this.btnUploadAll.UseVisualStyleBackColor = true;
+            this.btnUploadAll.Click += new System.EventHandler(this.btnUploadAll_Click);
+            // 
             // btnDelete
             // 
             this.btnDelete.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.btnDelete.Enabled = false;
-            this.btnDelete.Location = new System.Drawing.Point(454, 469);
+            this.btnDelete.Location = new System.Drawing.Point(454, 491);
             this.btnDelete.Name = "btnDelete";
             this.btnDelete.Size = new System.Drawing.Size(100, 27);
             this.btnDelete.TabIndex = 2;
@@ -162,7 +180,7 @@ namespace mgxparser
             this.gbFiles.Dock = System.Windows.Forms.DockStyle.Fill;
             this.gbFiles.Location = new System.Drawing.Point(581, 9);
             this.gbFiles.Name = "gbFiles";
-            this.gbFiles.Size = new System.Drawing.Size(566, 502);
+            this.gbFiles.Size = new System.Drawing.Size(566, 541);
             this.gbFiles.TabIndex = 1;
             this.gbFiles.TabStop = false;
             this.gbFiles.Text = "文件管理";
@@ -202,7 +220,7 @@ namespace mgxparser
             this.lvFiles.HideSelection = false;
             this.lvFiles.Location = new System.Drawing.Point(9, 56);
             this.lvFiles.Name = "lvFiles";
-            this.lvFiles.Size = new System.Drawing.Size(547, 440);
+            this.lvFiles.Size = new System.Drawing.Size(547, 462);
             this.lvFiles.TabIndex = 2;
             this.lvFiles.UseCompatibleStateImageBehavior = false;
             this.lvFiles.View = System.Windows.Forms.View.Details;
@@ -229,9 +247,10 @@ namespace mgxparser
             // 
             this.ctxMenu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.tsmiCopyPath,
+            this.tsmiUpload,
             this.tsmiDelete});
             this.ctxMenu.Name = "ctxMenu";
-            this.ctxMenu.Size = new System.Drawing.Size(149, 48);
+            this.ctxMenu.Size = new System.Drawing.Size(149, 70);
             // 
             // tsmiCopyPath
             // 
@@ -240,6 +259,13 @@ namespace mgxparser
             this.tsmiCopyPath.Text = "复制文件路径";
             this.tsmiCopyPath.Click += new System.EventHandler(this.ctxCopyPath_Click);
             // 
+            // tsmiUpload
+            // 
+            this.tsmiUpload.Name = "tsmiUpload";
+            this.tsmiUpload.Size = new System.Drawing.Size(148, 22);
+            this.tsmiUpload.Text = "上传录像";
+            this.tsmiUpload.Click += new System.EventHandler(this.ctxUpload_Click);
+            // 
             // tsmiDelete
             // 
             this.tsmiDelete.Name = "tsmiDelete";
@@ -247,15 +273,38 @@ namespace mgxparser
             this.tsmiDelete.Text = "删除";
             this.tsmiDelete.Click += new System.EventHandler(this.ctxDelete_Click);
             // 
+            // statusStrip
+            // 
+            this.statusStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.statusLabel,
+            this.statusProgress});
+            this.statusStrip.Location = new System.Drawing.Point(0, 541);
+            this.statusStrip.Name = "statusStrip";
+            this.statusStrip.Size = new System.Drawing.Size(1156, 22);
+            this.statusStrip.TabIndex = 2;
+            this.statusStrip.Text = "statusStrip";
+            // 
+            // statusLabel
+            // 
+            this.statusLabel.Name = "statusLabel";
+            this.statusLabel.Size = new System.Drawing.Size(0, 17);
+            // 
+            // statusProgress
+            // 
+            this.statusProgress.Name = "statusProgress";
+            this.statusProgress.Size = new System.Drawing.Size(100, 16);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(9F, 20F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1156, 520);
+            this.ClientSize = new System.Drawing.Size(1156, 563);
             this.Controls.Add(this.tblLayout);
+            this.Controls.Add(this.statusStrip);
             this.Font = new System.Drawing.Font("Microsoft YaHei UI", 11F);
             this.MinimumSize = new System.Drawing.Size(720, 460);
             this.Name = "Form1";
+            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "帝国时代录像解析器";
             this.tblLayout.ResumeLayout(false);
             this.gbInfo.ResumeLayout(false);
@@ -263,7 +312,10 @@ namespace mgxparser
             this.gbFiles.ResumeLayout(false);
             this.gbFiles.PerformLayout();
             this.ctxMenu.ResumeLayout(false);
+            this.statusStrip.ResumeLayout(false);
+            this.statusStrip.PerformLayout();
             this.ResumeLayout(false);
+            this.PerformLayout();
 
         }
 
@@ -277,6 +329,7 @@ namespace mgxparser
         private System.Windows.Forms.ColumnHeader colWinner;
         private System.Windows.Forms.ColumnHeader colResign;
         private System.Windows.Forms.Button btnDelete;
+        private System.Windows.Forms.Button btnUploadAll;
         private System.Windows.Forms.CheckBox chkConfirmDelete;
         private System.Windows.Forms.GroupBox gbFiles;
         private System.Windows.Forms.Button btnSelectFolder;
@@ -287,6 +340,10 @@ namespace mgxparser
         private System.Windows.Forms.ColumnHeader colFileDate;
         private System.Windows.Forms.ContextMenuStrip ctxMenu;
         private System.Windows.Forms.ToolStripMenuItem tsmiCopyPath;
+        private System.Windows.Forms.ToolStripMenuItem tsmiUpload;
         private System.Windows.Forms.ToolStripMenuItem tsmiDelete;
+        private System.Windows.Forms.StatusStrip statusStrip;
+        private System.Windows.Forms.ToolStripStatusLabel statusLabel;
+        private System.Windows.Forms.ToolStripProgressBar statusProgress;
     }
 }

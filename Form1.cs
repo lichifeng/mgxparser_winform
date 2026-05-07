@@ -1,7 +1,10 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Microsoft.VisualBasic.FileIO;
@@ -13,14 +16,37 @@ namespace mgxparser
         private string _currentFolder;
         private int _sortColumn;
         private bool _sortAscending = true;
+        private CancellationTokenSource _cts;
         private static readonly string LastFolderFile = Path.Combine(
             Path.GetTempPath(), "mgxparser_lastfolder.txt");
 
         public Form1()
         {
+            System.Net.ServicePointManager.SecurityProtocol =
+                System.Net.SecurityProtocolType.Tls12 | System.Net.SecurityProtocolType.Tls11 | System.Net.SecurityProtocolType.Tls;
             InitializeComponent();
             lvFiles.ListViewItemSorter = new ListViewItemComparer();
             LoadLastFolder();
+        }
+
+        private void SetStatus(string text, int progress = -1)
+        {
+            if (InvokeRequired)
+            {
+                Invoke(new Action<string, int>(SetStatus), text, progress);
+                return;
+            }
+            statusLabel.Text = text;
+            if (progress >= 0)
+            {
+                statusProgress.Visible = true;
+                statusProgress.Value = Math.Min(progress, 100);
+            }
+            else
+            {
+                statusProgress.Visible = false;
+                statusProgress.Value = 0;
+            }
         }
 
         private void LoadLastFolder()
@@ -229,6 +255,179 @@ namespace mgxparser
                 Clipboard.SetText(fi.FullName);
             }
         }
+
+        private async void ctxUpload_Click(object sender, EventArgs e)
+        {
+            if (lvFiles.SelectedItems.Count == 0)
+                return;
+
+            var fi = lvFiles.SelectedItems[0].Tag as FileInfo;
+            if (fi == null)
+                return;
+
+            SetStatus($"正在上传: {fi.Name}", 0);
+            var ok = await UploadFileAsync(fi);
+            SetStatus(ok == true ? $"\"{fi.Name}\" 上传成功" : $"\"{fi.Name}\" 上传失败");
+        }
+
+        private async void btnUploadAll_Click(object sender, EventArgs e)
+        {
+            if (_cts != null)
+            {
+                _cts.Cancel();
+                return;
+            }
+
+            if (lvFiles.Items.Count == 0 || string.IsNullOrEmpty(_currentFolder))
+                return;
+
+            btnUploadAll.Text = "取消上传";
+            int success = 0, fail = 0, skipped = 0;
+            var files = Directory.GetFiles(_currentFolder, "*.mgx")
+                .Select(f => new FileInfo(f))
+                .OrderBy(f => f.Name)
+                .ToList();
+
+            _cts = new CancellationTokenSource();
+            var ct = _cts.Token;
+
+            SetStatus($"准备上传 {files.Count} 个文件...", 0);
+
+            try
+            {
+                for (int i = 0; i < files.Count; i++)
+                {
+                    if (ct.IsCancellationRequested)
+                    {
+                        SetStatus($"已取消。已上传: {i}/{files.Count}, 成功: {success}, 失败: {fail}");
+                        return;
+                    }
+
+                    var fi = files[i];
+                    int pct = (i * 100) / files.Count;
+                    SetStatus($"已上传: {i}/{files.Count}, 成功: {success}, 失败: {fail} — 正在上传: {fi.Name}", pct);
+
+                    var result = await UploadFileAsync(fi, ct);
+                    if (result == true)
+                        success++;
+                    else if (result == false)
+                        fail++;
+                    else
+                        skipped++;
+                }
+
+                SetStatus($"上传完成。成功: {success}, 失败: {fail}, 跳过: {skipped}", 100);
+            }
+            catch (OperationCanceledException)
+            {
+                SetStatus("上传已取消");
+            }
+            catch (Exception ex)
+            {
+                SetStatus($"上传出错: {ex.Message}");
+            }
+            finally
+            {
+                _cts = null;
+                btnUploadAll.Text = "全部上传";
+                if (lvFiles.SelectedItems.Count > 0)
+                {
+                    var fi = lvFiles.SelectedItems[0].Tag as FileInfo;
+                    if (fi != null)
+                        _ = LoadGameInfo(fi.FullName);
+                }
+                else
+                {
+                    lblMatchup.Text = "对阵: -";
+                }
+            }
+        }
+
+        private static readonly HttpClient UploadClient = new HttpClient();
+        private const string UploadUrl = "https://manage.aocrec.com/upload";
+        private const long MaxUploadSize = 30 * 1024 * 1024;
+
+        private async Task<bool?> UploadFileAsync(FileInfo fi, CancellationToken ct = default)
+        {
+            if (fi.Length > MaxUploadSize)
+                return null; // skipped
+
+            string responseBody = null;
+
+            try
+            {
+                using (var form = new MultipartFormDataContent())
+                using (var fileStream = File.OpenRead(fi.FullName))
+                {
+                    var fileContent = new StreamContent(fileStream);
+                    fileContent.Headers.TryAddWithoutValidation(
+                        "Content-Disposition",
+                        $"form-data; name=\"recfile\"; filename=\"{fi.Name}\"");
+                    form.Add(fileContent);
+                    form.Add(new StringContent(
+                        new DateTimeOffset(fi.LastWriteTime).ToUnixTimeMilliseconds().ToString()),
+                        "lastmod");
+
+                    var response = await UploadClient.PostAsync(UploadUrl, form, ct);
+                    responseBody = await response.Content.ReadAsStringAsync();
+
+                    var serializer = new System.Web.Script.Serialization.JavaScriptSerializer();
+                    Dictionary<string, object> dict;
+
+                    try
+                    {
+                        dict = serializer.Deserialize<Dictionary<string, object>>(responseBody);
+                    }
+                    catch
+                    {
+                        // Response is not valid JSON — treat raw text as error
+#if DEBUG
+                        WriteUploadDebugLog(fi.Name, responseBody, null);
+#endif
+                        return false;
+                    }
+
+                    if (dict != null && dict.ContainsKey("guid"))
+                        return true;
+
+                    var errMsg = dict != null && dict.ContainsKey("error") ? dict["error"].ToString() : responseBody;
+#if DEBUG
+                    WriteUploadDebugLog(fi.Name, responseBody, errMsg);
+#endif
+                    return false;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+#if DEBUG
+                WriteUploadDebugLog(fi.Name, responseBody, ex.ToString());
+#endif
+                return false;
+            }
+        }
+
+#if DEBUG
+        private static void WriteUploadDebugLog(string fileName, string responseBody, string errorInfo)
+        {
+            try
+            {
+                var logPath = Path.Combine(Environment.CurrentDirectory, "upload_debug.log");
+                using (var w = File.AppendText(logPath))
+                {
+                    w.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] 文件: {fileName}");
+                    w.WriteLine($"错误: {errorInfo}");
+                    if (responseBody != null)
+                        w.WriteLine($"响应: {responseBody}");
+                    w.WriteLine(new string('-', 60));
+                }
+            }
+            catch { }
+        }
+#endif
 
         private void lvFiles_KeyDown(object sender, KeyEventArgs e)
         {
