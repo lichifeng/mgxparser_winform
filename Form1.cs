@@ -584,47 +584,63 @@ namespace mgxparser
             if (lvFiles.SelectedItems.Count == 0)
                 return;
 
-            var fi = lvFiles.SelectedItems[0].Tag as FileInfo;
-            if (fi == null)
+            var filesToDelete = lvFiles.SelectedItems
+                .Cast<ListViewItem>()
+                .Select(item => item.Tag as FileInfo)
+                .Where(fi => fi != null)
+                .ToList();
+
+            if (filesToDelete.Count == 0)
                 return;
 
-            int selectedIndex = lvFiles.SelectedIndices[0];
+            int firstIndex = lvFiles.SelectedIndices[0];
 
             if (chkConfirmDelete.Checked)
             {
-                var result = MessageBox.Show(
-                    $"确定要删除 \"{fi.Name}\" 吗？此操作会将文件移入回收站。",
-                    "确认删除",
-                    MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Warning);
+                string msg = filesToDelete.Count == 1
+                    ? $"确定要删除 \"{filesToDelete[0].Name}\" 吗？此操作会将文件移入回收站。"
+                    : $"确定要删除选中的 {filesToDelete.Count} 个文件吗？此操作会将文件移入回收站。";
+
+                var result = MessageBox.Show(msg, "确认删除",
+                    MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
 
                 if (result != DialogResult.Yes)
                     return;
             }
 
-            try
+            int failCount = 0;
+            foreach (var fi in filesToDelete)
             {
-                Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(
-                    fi.FullName,
-                    UIOption.OnlyErrorDialogs,
-                    RecycleOption.SendToRecycleBin);
-
-                RefreshFileList();
-                ClearPlayerInfo();
-                btnDelete.Enabled = false;
-
-                if (lvFiles.Items.Count > 0)
+                try
                 {
-                    int newIndex = Math.Min(selectedIndex, lvFiles.Items.Count - 1);
-                    lvFiles.Items[newIndex].Selected = true;
-                    lvFiles.Items[newIndex].Focused = true;
-                    lvFiles.Items[newIndex].EnsureVisible();
+                    Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(
+                        fi.FullName,
+                        UIOption.OnlyErrorDialogs,
+                        RecycleOption.SendToRecycleBin);
+                }
+                catch (Exception ex)
+                {
+                    failCount++;
+                    WriteLog("error", $"删除失败: {fi.Name}", ex.Message);
                 }
             }
-            catch (Exception ex)
+
+            RefreshFileList();
+            ClearPlayerInfo();
+            btnDelete.Enabled = false;
+
+            if (failCount > 0)
             {
-                MessageBox.Show($"删除文件失败: {ex.Message}", "错误",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"删除了 {filesToDelete.Count - failCount} 个文件，{failCount} 个失败。",
+                    "删除结果", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+
+            if (lvFiles.Items.Count > 0)
+            {
+                int newIndex = Math.Min(firstIndex, lvFiles.Items.Count - 1);
+                lvFiles.Items[newIndex].Selected = true;
+                lvFiles.Items[newIndex].Focused = true;
+                lvFiles.Items[newIndex].EnsureVisible();
             }
         }
 

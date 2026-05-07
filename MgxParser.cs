@@ -1,9 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Threading.Tasks;
 using System.Web.Script.Serialization;
+using MgxNative;
 
 namespace mgxparser
 {
@@ -98,47 +96,14 @@ namespace mgxparser
 
     public static class MgxParser
     {
-        private static readonly string ExePath = Path.Combine(
-            AppDomain.CurrentDomain.BaseDirectory, "mgx.exe");
-
-        public static async Task<GameInfo> ParseGameInfo(string filePath)
+        public static GameInfo ParseGameInfo(string filePath)
         {
-            string stdout = "", stderr = "";
-            int exitCode;
-
-            using (var process = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = ExePath,
-                    Arguments = $"--json --zh \"{filePath}\"",
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true,
-                    StandardOutputEncoding = System.Text.Encoding.UTF8
-                }
-            })
-            {
-                process.OutputDataReceived += (sender, e) => stdout += e.Data;
-                process.ErrorDataReceived += (sender, e) =>
-                {
-                    if (e.Data != null) stderr += e.Data + "\n";
-                };
-
-                process.Start();
-                process.BeginOutputReadLine();
-                process.BeginErrorReadLine();
-
-                await Task.Run(() => process.WaitForExit());
-                exitCode = process.ExitCode;
-            }
-
-            if (exitCode != 0)
-                throw new Exception($"mgx.exe 解析失败 (退出码 {exitCode}): {stderr}");
+            string json = Parser.ParseFile(filePath);
+            if (json == null)
+                throw new Exception("解析录像文件失败，文件可能已损坏或格式不支持");
 
             var serializer = new JavaScriptSerializer();
-            return serializer.Deserialize<GameInfo>(stdout);
+            return serializer.Deserialize<GameInfo>(json);
         }
     }
 }

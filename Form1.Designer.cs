@@ -16,6 +16,7 @@ namespace mgxparser
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Form1));
             this.tblLayout = new System.Windows.Forms.TableLayoutPanel();
             this.gbInfo = new System.Windows.Forms.GroupBox();
             this.lblMatchup = new System.Windows.Forms.Label();
@@ -322,10 +323,11 @@ namespace mgxparser
             this.Controls.Add(this.tblLayout);
             this.Controls.Add(this.statusStrip);
             this.Font = new System.Drawing.Font("Microsoft YaHei UI", 11F);
+            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MinimumSize = new System.Drawing.Size(720, 460);
             this.Name = "Form1";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
-            this.Text = "帝国时代录像解析器";
+            this.Text = "帝国时代录像管理器";
             this.tblLayout.ResumeLayout(false);
             this.gbInfo.ResumeLayout(false);
             this.gbInfo.PerformLayout();
