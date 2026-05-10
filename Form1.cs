@@ -15,8 +15,8 @@ namespace mgxparser
     public partial class Form1 : Form
     {
         private string _currentFolder;
-        private int _sortColumn;
-        private bool _sortAscending = true;
+        private int _sortColumn = 2; // 默认按日期列排序
+        private bool _sortAscending;
         private CancellationTokenSource _cts;
         private string _currentGuid;
         private FileInfo _currentSearchedFile;
@@ -166,8 +166,25 @@ namespace mgxparser
             {
                 ClearPlayerInfo();
                 btnDelete.Enabled = false;
+                lvPlayers.Enabled = false;
+                tsmiUpload.Text = "上传录像";
+                btnUploadAll.Text = "全部上传";
                 return;
             }
+
+            if (lvFiles.SelectedItems.Count > 1)
+            {
+                ClearPlayerInfo();
+                lvPlayers.Enabled = false;
+                btnDelete.Enabled = true;
+                tsmiUpload.Text = $"上传 {lvFiles.SelectedItems.Count} 个";
+                btnUploadAll.Text = $"上传 {lvFiles.SelectedItems.Count} 个";
+                return;
+            }
+
+            lvPlayers.Enabled = true;
+            btnUploadAll.Text = "全部上传";
+            tsmiUpload.Text = "上传录像";
 
             var fi = lvFiles.SelectedItems[0].Tag as FileInfo;
             if (fi == null)
@@ -253,6 +270,36 @@ namespace mgxparser
             DeleteSelectedFile();
         }
 
+        private void btnClearCache_Click(object sender, EventArgs e)
+        {
+            var result = MessageBox.Show("确定要清理配置缓存吗？这将清除保存的文件夹路径并重置界面。",
+                "清理缓存", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+            if (result != DialogResult.Yes)
+                return;
+
+            try
+            {
+                if (File.Exists(LastFolderFile))
+                    File.Delete(LastFolderFile);
+            }
+            catch (Exception ex)
+            {
+                WriteLog("error", $"清理配置文件失败", ex.Message);
+            }
+
+            // Reset UI to defaults
+            _currentFolder = null;
+            txtFolderPath.Text = "";
+            lvFiles.Items.Clear();
+            ClearPlayerInfo();
+            btnDelete.Enabled = false;
+            lvPlayers.Enabled = false;
+            btnUploadAll.Text = "全部上传";
+            tsmiUpload.Text = "上传录像";
+
+            SetStatus("配置缓存已清理");
+        }
+
         private void ctxDelete_Click(object sender, EventArgs e)
         {
             DeleteSelectedFile();
@@ -270,18 +317,49 @@ namespace mgxparser
             }
         }
 
+        private void ctxMenu_Opening(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            var selCount = lvFiles.SelectedItems.Count;
+            tsmiUpload.Text = selCount > 1 ? $"上传 {selCount} 个" : "上传录像";
+        }
+
         private async void ctxUpload_Click(object sender, EventArgs e)
         {
             if (lvFiles.SelectedItems.Count == 0)
                 return;
 
-            var fi = lvFiles.SelectedItems[0].Tag as FileInfo;
-            if (fi == null)
+            var files = lvFiles.SelectedItems
+                .Cast<ListViewItem>()
+                .Select(item => item.Tag as FileInfo)
+                .Where(fi => fi != null)
+                .ToList();
+
+            if (files.Count == 0)
                 return;
 
-            SetStatus($"正在上传: {fi.Name}", 0);
-            var ok = await UploadFileAsync(fi);
-            SetStatus(ok == true ? $"\"{fi.Name}\" 上传成功" : $"\"{fi.Name}\" 上传失败");
+            if (files.Count == 1)
+            {
+                var fi = files[0];
+                SetStatus($"正在上传: {fi.Name}", 0);
+                var ok = await UploadFileAsync(fi);
+                SetStatus(ok == true ? $"\"{fi.Name}\" 上传成功" : $"\"{fi.Name}\" 上传失败");
+            }
+            else
+            {
+                int success = 0, fail = 0;
+                for (int i = 0; i < files.Count; i++)
+                {
+                    var fi = files[i];
+                    int pct = (i * 100) / files.Count;
+                    SetStatus($"正在上传: {fi.Name} ({i + 1}/{files.Count})", pct);
+                    var ok = await UploadFileAsync(fi);
+                    if (ok == true)
+                        success++;
+                    else
+                        fail++;
+                }
+                SetStatus($"上传完成。成功: {success}, 失败: {fail}", 100);
+            }
         }
 
         private async void btnUploadAll_Click(object sender, EventArgs e)
@@ -292,15 +370,32 @@ namespace mgxparser
                 return;
             }
 
-            if (lvFiles.Items.Count == 0 || string.IsNullOrEmpty(_currentFolder))
+            List<FileInfo> files;
+            bool uploadingSelected = lvFiles.SelectedItems.Count > 1;
+
+            if (uploadingSelected)
+            {
+                files = lvFiles.SelectedItems
+                    .Cast<ListViewItem>()
+                    .Select(item => item.Tag as FileInfo)
+                    .Where(fi => fi != null)
+                    .ToList();
+            }
+            else
+            {
+                if (lvFiles.Items.Count == 0 || string.IsNullOrEmpty(_currentFolder))
+                    return;
+                files = Directory.GetFiles(_currentFolder, "*.mgx")
+                    .Select(f => new FileInfo(f))
+                    .OrderBy(f => f.Name)
+                    .ToList();
+            }
+
+            if (files.Count == 0)
                 return;
 
             btnUploadAll.Text = "取消上传";
             int success = 0, fail = 0, skipped = 0;
-            var files = Directory.GetFiles(_currentFolder, "*.mgx")
-                .Select(f => new FileInfo(f))
-                .OrderBy(f => f.Name)
-                .ToList();
 
             _cts = new CancellationTokenSource();
             var ct = _cts.Token;
@@ -343,8 +438,10 @@ namespace mgxparser
             finally
             {
                 _cts = null;
-                btnUploadAll.Text = "全部上传";
-                if (lvFiles.SelectedItems.Count > 0)
+                var selCount = lvFiles.SelectedItems.Count;
+                btnUploadAll.Text = selCount > 1 ? $"上传 {selCount} 个" : "全部上传";
+
+                if (lvFiles.SelectedItems.Count == 1)
                 {
                     var fi = lvFiles.SelectedItems[0].Tag as FileInfo;
                     if (fi != null)
@@ -376,7 +473,7 @@ namespace mgxparser
                     var fileContent = new StreamContent(fileStream);
                     fileContent.Headers.TryAddWithoutValidation(
                         "Content-Disposition",
-                        $"form-data; name=\"recfile\"; filename=\"{fi.Name}\"");
+                        $"form-data; name=\"recfile\"; filename*=UTF-8''{Uri.EscapeDataString(fi.Name)}");
                     form.Add(fileContent);
                     form.Add(new StringContent(
                         new DateTimeOffset(fi.LastWriteTime).ToUnixTimeMilliseconds().ToString()),

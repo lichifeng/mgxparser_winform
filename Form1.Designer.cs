@@ -28,6 +28,7 @@ namespace mgxparser
             this.colWinner = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.colResign = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.chkConfirmDelete = new System.Windows.Forms.CheckBox();
+            this.btnClearCache = new System.Windows.Forms.Button();
             this.btnUploadAll = new System.Windows.Forms.Button();
             this.btnDelete = new System.Windows.Forms.Button();
             this.gbFiles = new System.Windows.Forms.GroupBox();
@@ -72,6 +73,7 @@ namespace mgxparser
             this.gbInfo.Controls.Add(this.lnkSearch);
             this.gbInfo.Controls.Add(this.lvPlayers);
             this.gbInfo.Controls.Add(this.chkConfirmDelete);
+            this.gbInfo.Controls.Add(this.btnClearCache);
             this.gbInfo.Controls.Add(this.btnUploadAll);
             this.gbInfo.Controls.Add(this.btnDelete);
             this.gbInfo.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -169,9 +171,20 @@ namespace mgxparser
             this.chkConfirmDelete.TabIndex = 3;
             this.chkConfirmDelete.Text = "删除前确认";
             this.chkConfirmDelete.UseVisualStyleBackColor = true;
-            // 
+            //
+            // btnClearCache
+            //
+            this.btnClearCache.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.btnClearCache.Location = new System.Drawing.Point(130, 491);
+            this.btnClearCache.Name = "btnClearCache";
+            this.btnClearCache.Size = new System.Drawing.Size(108, 27);
+            this.btnClearCache.TabIndex = 6;
+            this.btnClearCache.Text = "清理缓存";
+            this.btnClearCache.UseVisualStyleBackColor = true;
+            this.btnClearCache.Click += new System.EventHandler(this.btnClearCache_Click);
+            //
             // btnUploadAll
-            // 
+            //
             this.btnUploadAll.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.btnUploadAll.Location = new System.Drawing.Point(340, 491);
             this.btnUploadAll.Name = "btnUploadAll";
@@ -272,6 +285,7 @@ namespace mgxparser
             this.tsmiDelete});
             this.ctxMenu.Name = "ctxMenu";
             this.ctxMenu.Size = new System.Drawing.Size(149, 70);
+            this.ctxMenu.Opening += new System.ComponentModel.CancelEventHandler(this.ctxMenu_Opening);
             // 
             // tsmiCopyPath
             // 
@@ -352,6 +366,7 @@ namespace mgxparser
         private System.Windows.Forms.ColumnHeader colResign;
         private System.Windows.Forms.Button btnDelete;
         private System.Windows.Forms.Button btnUploadAll;
+        private System.Windows.Forms.Button btnClearCache;
         private System.Windows.Forms.LinkLabel lnkSearch;
         private System.Windows.Forms.CheckBox chkConfirmDelete;
         private System.Windows.Forms.GroupBox gbFiles;
